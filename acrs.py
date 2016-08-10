@@ -80,6 +80,9 @@ def calculate(GPS):
 
 #はじめにデータベース作成を行う
 #<データベース作成　by sqlite3 > すみません・・・ここわからない
+# shinohara データベース作成は先にやっておくべきでは？？？？
+# このプログラム内でやる必要性がわからない
+# つまり、ここから↓
 conn = sqlite3.connect('ACRS.db')
 cur = conn.cursor()
 cur.execute("""CREATE TABLE feature_Point(ID text,lat text,lon text,l text,d text,img text);""")
@@ -124,8 +127,13 @@ for img_ex in imlist:
   # conn.execute(sql, (Num,lat_db_str,lon_db_str,[l_db_str],[d_db_str],[RGB_str]))
   conn.commit()
 
+# ここまで↑は別の関数にして、データベースだけを呼び出すようにしたい
+
+#ここからを関数化するべき
+# つまり、
+#def DBmatching (画像のパスを引数):
 # 入力画像
-img='KandaMyoujin.jpg'
+img='KandaMyoujin.jpg'#これが引数で渡される shinohara
 # img_Num=np.array(Image.open(img))
 # img_New=np.zeros((len(img_Num[:,0]),(len(img_Num[0,:]))))
 #Gray_Scale process
@@ -172,6 +180,8 @@ print list_inf
   #   else:
   #     print 'not mutch'
 
+#さいご 次の関数にわたされる情報をreturn
+# return hoge
 
 
 
