@@ -27,12 +27,12 @@ def read_features_from_file(filename):
   f = np.loadtxt(filename)
   return f[:,:4],f[:,4:]
 
-
+# Plese explain this 'match' function 
 def match(desc1,desc2):
   desc1 = np.array([d/np.linalg.norm(d) for d in desc1])
   desc2 = np.array([d/np.linalg.norm(d) for d in desc2])
 
-  dist_ratio = 0.6
+  dist_ratio = 0.6 #なんで、0.6なのか？？？
   desc1_size = desc1.shape
 
   matchscores = np.zeros(desc1_size[0],'int')
