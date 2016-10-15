@@ -45,7 +45,9 @@ def process_image(imagename,resultname,params="--edge-thresh 10 --peak-thresh 5"
   """ 画像を処理してファイルに結果を保存する """
 
   if imagename[-3:] != 'pgm':
-    im = Image.open(imagename).convert('L')
+    im = np.array(Image.open(imagename).convert('L'))
+    im= im[::10, ::10]
+    im= Image.fromarray(np.uint8(im))
     im.save('tmp.pgm')
     imagename = 'tmp.pgm'
 
@@ -83,15 +85,17 @@ def compare_img(img):
   conn = sqlite3.connect("ACRS.db")
   cur = conn.cursor()
   sname=img+'.sift'
+  start=time.time()
   process_image(img,sname)
-  l1,d1 = read_features_from_file(sname) 
+  l1,d1 = read_features_from_file(sname)
+  elapsed_time = time.time() - start
+  print ("SIFT_elapsed_time:{0}".format(elapsed_time)) + "[sec]"
   #print 'Image',im_grey
-  #print 'size',d1.ndim
+  print 'Type',d1[0][0].dtype
   # print '\n'
   # <EXIF情報の取得>
   #もしEXIFがなければ０を返す
   try:
-    start=time.time() 
     GPS=get_exif(img)
     lat,lon=calculate(GPS)
   except AttributeError:
@@ -102,10 +106,12 @@ def compare_img(img):
   #データベースの格納画像数
   best_matches=0
   Num=2
-  Num_list=['0','1','2','3','4','5','6','7','8','9']
+  Num_list=[0,1,2,3,4,5,6,7,8,9]
   list_img=[]
   for i in range(4*Num): 
+    start=time.time() 
     data_db=cur.fetchone()
+    print data_db
     for k in range(5):
       df=data_db[k]
       if df != None:
@@ -118,80 +124,81 @@ def compare_img(img):
           df_n=str(list_img[4][n])
           name_fin=name_fin+df_n
       list_name.append(name_fin)
-    list_Pre=[]
-    list_inf=[]
-    N_fin=str(0)
-    for j in range(len(list_img[2])):
-      N=str(list_img[2][j])
-      # print N
-      for k in Num_list:
-        if N==k:
-          N_fin=N_fin+N
-          #print N_fin
+      list_Pre_Num=[]
+      list_Pre=[]
+      list_inf=[]
+      N_fin=str(0)
+      for j in range(len(list_img[2])):
+        N=str(list_img[2][j])
+        for k in Num_list:
+          if N==str(k):
+            N_fin=N_fin+N
         if N==',':
           list_Pre.append(int(N_fin))
           N_fin=str(0)
         if N==']':
-          list_Pre.append(int(N_fin))          
+          list_Pre.append(int(N_fin))   
         if len(list_Pre)==128:
-          list_inf.append(list_Pre)
-          list_Pre=[]
-    list_inf=np.array(list_inf)
-    # creation for return img
-    list_ret=[]
-    list_ret_Pre=[]
-    df_ret=str(0)
-    for k in range(len(list_img[3])):
-      img_df=str(list_img[3][k])
-      for l in Num_list:
-        if img_df==l:
-          df_ret=df_ret+img_df
-        if img_df==' ':
-          list_ret_Pre.append(int(df_ret))
-          df_ret=str(0)
-        if img_df==']':
-          if len(list_ret_Pre)>1:
-            list_ret.append(list_ret_Pre)
-            list_ret_Pre=[]
-    print 'input vs {0}'.format(list_name[0])
-    lat_fin=list_img[0]
-    lon_fin=list_img[1]
-    if lat>0 and lon>0:
-      if abs(lat-list_img[0])<0.5 and abs(lon-list_img[1])<0.5:
+            list_inf.append(list_Pre)
+            list_Pre=[]
+      list_inf=np.array(list_inf)
+      # creation for return img
+      list_ret=[]
+      list_ret_Pre=[]
+      df_ret=str(0)
+      for k in range(len(list_img[3])):
+        img_df=str(list_img[3][k])
+        for l in Num_list:
+          if img_df==l:
+            df_ret=df_ret+img_df
+          if img_df==' ':
+            list_ret_Pre.append(int(df_ret))
+            df_ret=str(0)
+          if img_df==']':
+            if len(list_ret_Pre)>1:
+              list_ret.append(list_ret_Pre)
+              list_ret_Pre=[]
+      elapsed_time = time.time() - start
+      print ("SHAPE_Transform_elapsed_time:{0}".format(elapsed_time)) + "[sec]"
+      print 'input vs {0}'.format(list_name[0])
+      lat_fin=list_img[0]
+      lon_fin=list_img[1]
+      if lat>0 and lon>0:
+        if abs(lat-list_img[0])<0.5 and abs(lon-list_img[1])<0.5:
+          d_db=list_inf
+          #入力画像とフィルタ通過したデータベース画像の特徴点マッチング開始
+          matches = match(d1,d_db)
+          #共通特徴点数の閾値
+          nbr_matches = sum(matches > 0)
+          if best_matches < nbr_matches:
+            bestlon= lon_fin
+            bestlat= lat_fin
+            bestname= list_name[0]
+            best_inf=list_inf
+            best_matches = nbr_matches
+          list_img=[]
+
+      if lat ==0 and lon==0:
+        print 'No_GPS'
         d_db=list_inf
-        #入力画像とフィルタ通過したデータベース画像の特徴点マッチング開始
+        print 'start matching'
+        #入力画像とデータベース画像の特徴点マッチング開始
         matches = match(d1,d_db)
+
         #共通特徴点数の閾値
         nbr_matches = sum(matches > 0)
-        if nbr_matches>50:
-        print 'number of matches = ', nbr_matches
-        #matchscores[i,j] = nbr_matches
-        # print 'imagename:{0}'.format(img_ex)
-          #次のプロセス画像としてリターンされる画像のRGB
-          return lat_fin,lon_fin,list_name[0],list_inf
-        if nbr_matches<49:
-          print 'not mutch'
-          lat_fin,lon_fin=0,0
-      list_img=[]
+        if best_matches < nbr_matches:
+          bestlon= lon_fin
+          bestlat= lat_fin
+          bestname= list_name[0]
+          best_inf=list_inf
+          best_matches = nbr_matches
+        list_img=[]      
       elapsed_time = time.time() - start
-      print ("elapsed_time:{0}".format(elapsed_time)) + "[sec]"
-    if lat ==0 and lon==0:
-      print 'No_GPS'
-      d_db=list_inf
-      #入力画像とデータベース画像の特徴点マッチング開始
-      matches = match(d1,d_db)
-      print matches
-      #共通特徴点数の閾値
-      nbr_matches = sum(matches > 0)
-      if best_matches < nbr_matches:
-        best_matches = nbr_matches
-        bestlon= lon_fin
-        bestlat= lat_fin
-        bestname= list_name[0]
-        best_inf=list_inf
-      list_img=[]
+      print ("Matching_elapsed_time:{0}".format(elapsed_time)) + "[sec]"
+
   if best_matches>50:
-    print 'number of matches = ', nbr_matches
+    print 'number of matches = ', best_matches
     #matchscores[i,j] = nbr_matches
     # print 'imagename:{0}'.format(img_ex)
     #次のプロセス画像としてリターンされる画像のRGB
@@ -202,7 +209,7 @@ def compare_img(img):
     lat_fin,lon_fin=0,0
     return lat_fin,lon_fin,0,0
   elapsed_time = time.time() - start
-  print ("elapsed_Matchingtime:{0}".format(elapsed_time)) + "[sec]"
+  print ("Return_elapsed_time:{0}".format(elapsed_time)) + "[sec]"
 
-img='KandaMyoujin.png'
+img='Kaminarimon-1.png'
 lat,lon,name,inf=compare_img(img)
