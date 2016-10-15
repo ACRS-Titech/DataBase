@@ -1,3 +1,4 @@
+
 # -*- coding:utf-8 -*-
 import os
 import sys
@@ -91,7 +92,6 @@ def compare_img(img):
   elapsed_time = time.time() - start
   print ("SIFT_elapsed_time:{0}".format(elapsed_time)) + "[sec]"
   #print 'Image',im_grey
-  print 'Type',d1[0][0].dtype
   # print '\n'
   # <EXIF情報の取得>
   #もしEXIFがなければ０を返す
@@ -105,13 +105,12 @@ def compare_img(img):
   cur.execute( "select * from feature_Point" )
   #データベースの格納画像数
   best_matches=0
-  Num=2
+  Num=43
   Num_list=[0,1,2,3,4,5,6,7,8,9]
   list_img=[]
   for i in range(4*Num): 
     start=time.time() 
     data_db=cur.fetchone()
-    print data_db
     for k in range(5):
       df=data_db[k]
       if df != None:
